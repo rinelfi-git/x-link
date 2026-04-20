@@ -1,30 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../../core/models/peer.dart';
+import '../../main.dart' show udpDiscovery;
 import '../widgets/peer_tile.dart';
 import 'context_page.dart';
 
 class PeersPage extends StatelessWidget {
   const PeersPage({super.key});
 
-  // Données de démonstration
-  static const _demoPeers = [
-    {'hostname': 'PC-Bureau', 'os': 'linux', 'ip': '192.168.1.42'},
-    {'hostname': 'Pixel-8', 'os': 'android', 'ip': '192.168.1.73'},
-    {'hostname': 'MacBook-Pro', 'os': 'macos', 'ip': '192.168.1.108'},
-    {'hostname': 'Surface-Laptop', 'os': 'windows', 'ip': '192.168.1.91'},
-    {'hostname': 'iPhone-15', 'os': 'ios', 'ip': '192.168.1.55'},
-    {'hostname': 'Raspberry-NAS', 'os': 'unknown', 'ip': '192.168.1.200'},
-    {'hostname': 'Dev-Tower', 'os': 'linux', 'ip': '192.168.1.12'},
-    {'hostname': 'Galaxy-S24', 'os': 'android', 'ip': '192.168.1.61'},
-    {'hostname': 'Mac-Mini-M4', 'os': 'macos', 'ip': '192.168.1.77'},
-    {'hostname': 'WorkStation-01', 'os': 'windows', 'ip': '192.168.1.34'},
-    {'hostname': 'iPad-Pro', 'os': 'ios', 'ip': '192.168.1.82'},
-    {'hostname': 'ThinkPad-X1', 'os': 'linux', 'ip': '192.168.1.145'},
-    {'hostname': 'Xiaomi-14', 'os': 'android', 'ip': '192.168.1.19'},
-    {'hostname': 'iMac-27', 'os': 'macos', 'ip': '192.168.1.167'},
-    {'hostname': 'Gaming-Rig', 'os': 'windows', 'ip': '192.168.1.88'},
-    {'hostname': 'Smart-TV', 'os': 'unknown', 'ip': '192.168.1.250'},
-  ];
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Peer>>(
+      stream: udpDiscovery.peersStream,
+      initialData: udpDiscovery.peers,
+      builder: (context, snapshot) {
+        final peers = snapshot.data ?? const <Peer>[];
+        return _PeersView(peers: peers);
+      },
+    );
+  }
+}
+
+class _PeersView extends StatelessWidget {
+  final List<Peer> peers;
+
+  const _PeersView({required this.peers});
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +44,7 @@ class PeersPage extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${_demoPeers.length} pairs en ligne',
+                '${peers.length} pair${peers.length > 1 ? 's' : ''} en ligne',
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -53,7 +53,7 @@ class PeersPage extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: _demoPeers.isEmpty
+          child: peers.isEmpty
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -76,24 +76,20 @@ class PeersPage extends StatelessWidget {
                 )
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _demoPeers.length,
+                  itemCount: peers.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 4),
                   itemBuilder: (context, index) {
-                    final peer = _demoPeers[index];
+                    final peer = peers[index];
                     return PeerTile(
-                      hostname: peer['hostname']!,
-                      os: peer['os']!,
-                      ip: peer['ip']!,
-                      isUploading: index == 0,
-                      uploadSpeed: index == 0 ? '2.4 MB/s' : null,
-                      isDownloading: index == 1,
-                      downloadSpeed: index == 1 ? '5.1 MB/s' : null,
+                      hostname: peer.hostname,
+                      os: peer.os,
+                      ip: peer.ip,
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ContextPage(
-                              hostname: peer['hostname']!,
-                              os: peer['os']!,
+                              hostname: peer.hostname,
+                              os: peer.os,
                             ),
                           ),
                         );

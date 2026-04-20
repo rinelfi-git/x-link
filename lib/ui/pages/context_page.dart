@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import '../../core/services/permissions.dart';
 import '../widgets/file_transfer_bubble.dart';
 import '../widgets/message_bubble.dart';
 
@@ -89,9 +90,11 @@ class _ContextPageState extends State<ContextPage> {
         onDragExited: (_) => setState(() => _isDragging = false),
         onDragDone: (details) {
           setState(() => _isDragging = false);
-          for (final file in details.files) {
-            debugPrint('[DROP] Fichier: ${file.path}');
-          }
+          AppPermissions.withStorage(context, () async {
+            for (final file in details.files) {
+              debugPrint('[DROP] Fichier: ${file.path}');
+            }
+          });
         },
         child: Stack(
           children: [
@@ -182,15 +185,17 @@ class _ContextPageState extends State<ContextPage> {
                           Icons.attach_file,
                           color: theme.colorScheme.primary,
                         ),
-                        onPressed: () async {
-                          final result = await FilePicker.pickFiles(
-                            allowMultiple: true,
-                          );
-                          if (result != null) {
-                            for (final file in result.files) {
-                              debugPrint('[PICK] Fichier: ${file.path}');
+                        onPressed: () {
+                          AppPermissions.withStorage(context, () async {
+                            final result = await FilePicker.pickFiles(
+                              allowMultiple: true,
+                            );
+                            if (result != null) {
+                              for (final file in result.files) {
+                                debugPrint('[PICK] Fichier: ${file.path}');
+                              }
                             }
-                          }
+                          });
                         },
                       ),
                       Expanded(

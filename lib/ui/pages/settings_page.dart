@@ -1,6 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/services/permissions.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -71,11 +73,13 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Dossier de réception',
           subtitle: _downloadPath,
           child: FilledButton.tonal(
-            onPressed: () async {
-              final path = await FilePicker.getDirectoryPath();
-              if (path != null) {
-                setState(() => _downloadPath = path);
-              }
+            onPressed: () {
+              AppPermissions.withStorage(context, () async {
+                final path = await FilePicker.getDirectoryPath();
+                if (path != null) {
+                  setState(() => _downloadPath = path);
+                }
+              });
             },
             child: const Text('Changer'),
           ),

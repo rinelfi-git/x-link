@@ -4,6 +4,18 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>X Link a besoin d'accéder à votre galerie pour partager des photos avec les pairs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>X Link a besoin d'enregistrer les photos reçues dans votre galerie.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>X Link a besoin d'accéder à vos documents pour partager des fichiers avec les pairs.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>X Link a besoin d'accéder au réseau local pour découvrir les pairs.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_crosslink._udp</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

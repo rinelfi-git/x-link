@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/transfer_state.dart';
+import '../services/app_settings.dart';
 import '../services/transfer_store.dart';
 import 'file_protocol.dart';
 
@@ -21,13 +22,13 @@ const int _diskSafetyMargin = 10 * 1024 * 1024;
 class FileServer {
   final TransferStore store;
 
-  /// Fonction appelée pour obtenir le dossier de téléchargement actuel.
-  /// Lue à chaque handshake pour refléter les changements dans Settings.
-  final String Function() downloadPathProvider;
+  /// Paramètres lus à chaque handshake pour refléter les changements
+  /// en direct depuis la page Settings (dossier, stratégie de conflit).
+  final AppSettings settings;
 
   FileServer({
     required this.store,
-    required this.downloadPathProvider,
+    required this.settings,
   });
 
   final List<ServerSocket> _slots = [];
@@ -87,7 +88,7 @@ class FileServer {
     _FileReceiver(
       socket: client,
       store: store,
-      downloadPathProvider: downloadPathProvider,
+      settings: settings,
     ).run();
   }
 }
@@ -97,12 +98,12 @@ class FileServer {
 class _FileReceiver {
   final Socket socket;
   final TransferStore store;
-  final String Function() downloadPathProvider;
+  final AppSettings settings;
 
   _FileReceiver({
     required this.socket,
     required this.store,
-    required this.downloadPathProvider,
+    required this.settings,
   });
 
   final _buffer = BytesBuilder(copy: false);
@@ -222,7 +223,7 @@ class _FileReceiver {
     _transferId = transferId;
     _totalBytes = fileSize;
 
-    final folder = downloadPathProvider();
+    final folder = settings.downloadPath;
     final check = await _verifyDestination(folder, filename, fileSize);
     if (!check.ok) {
       await _sendHandshakeKo(transferId, check.code!, check.message!);
@@ -312,8 +313,11 @@ class _FileReceiver {
       // Ignorer : on laisse passer si on ne peut pas vérifier
     }
 
-    // Résolution des conflits de nom
-    final finalPath = _resolveUniquePath(folder, filename);
+    // Résolution des conflits de nom selon la stratégie configurée.
+    final finalPath = switch (settings.conflictStrategy) {
+      FileConflictStrategy.overwrite => p.join(folder, filename),
+      FileConflictStrategy.rename => _resolveUniquePath(folder, filename),
+    };
     return _DestCheck.ok(finalPath);
   }
 
@@ -418,9 +422,15 @@ class _FileReceiver {
     await _sink?.close();
     _sink = null;
 
-    // Rename .part → final
+    // Rename .part → final. En mode overwrite, on supprime l'existant.
     if (_partPath != null && _finalPath != null) {
       try {
+        if (settings.conflictStrategy == FileConflictStrategy.overwrite) {
+          final existing = File(_finalPath!);
+          if (existing.existsSync()) {
+            await existing.delete();
+          }
+        }
         await File(_partPath!).rename(_finalPath!);
       } catch (e) {
         debugPrint('[FILE] Erreur rename : $e');

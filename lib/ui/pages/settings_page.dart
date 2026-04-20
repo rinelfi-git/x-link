@@ -1,8 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/services/app_settings.dart';
 import '../../core/services/permissions.dart';
-import '../../main.dart' show udpDiscovery;
+import '../../main.dart' show appSettings, udpDiscovery;
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,8 +13,17 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  int _maxFileTransfers = 2;
-  String _downloadPath = '~/Téléchargements';
+  late int _maxFileTransfers;
+  late String _downloadPath;
+  late FileConflictStrategy _conflictStrategy;
+
+  @override
+  void initState() {
+    super.initState();
+    _maxFileTransfers = appSettings.maxFileTransfers;
+    _downloadPath = appSettings.downloadPath;
+    _conflictStrategy = appSettings.conflictStrategy;
+  }
 
   void _showError(String message) {
     if (!mounted) return;
@@ -35,6 +45,25 @@ class _SettingsPageState extends State<SettingsPage> {
     } on PermissionDeniedException catch (e) {
       _showError(e.message);
     }
+  }
+
+  void _save() {
+    appSettings
+      ..setMaxFileTransfers(_maxFileTransfers)
+      ..setDownloadPath(_downloadPath)
+      ..setConflictStrategy(_conflictStrategy);
+
+    final theme = Theme.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Paramètres enregistrés'),
+        backgroundColor: theme.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 
   @override
@@ -102,6 +131,33 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 12),
 
+        // Stratégie de conflit de nom
+        _SettingsCard(
+          theme: theme,
+          icon: Icons.copy_outlined,
+          title: 'Fichier du même nom',
+          subtitle: 'Comportement si un fichier existe déjà',
+          child: SegmentedButton<FileConflictStrategy>(
+            segments: const [
+              ButtonSegment(
+                value: FileConflictStrategy.rename,
+                label: Text('Renommer'),
+                icon: Icon(Icons.edit),
+              ),
+              ButtonSegment(
+                value: FileConflictStrategy.overwrite,
+                label: Text('Écraser'),
+                icon: Icon(Icons.refresh),
+              ),
+            ],
+            selected: {_conflictStrategy},
+            onSelectionChanged: (selection) {
+              setState(() => _conflictStrategy = selection.first);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Identité
         _SettingsCard(
           theme: theme,
@@ -118,23 +174,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 32),
 
-        // Bouton enregistrer
         SizedBox(
           width: double.infinity,
           height: 48,
           child: FilledButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Paramètres enregistrés'),
-                  backgroundColor: theme.colorScheme.primary,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-            },
+            onPressed: _save,
             icon: const Icon(Icons.save),
             label: const Text('Enregistrer'),
           ),

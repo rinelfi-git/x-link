@@ -9,7 +9,7 @@ class DesktopApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cross Link',
+      title: 'X Link',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: const HomePage(),

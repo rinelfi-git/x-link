@@ -1,6 +1,7 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../widgets/file_transfer_bubble.dart';
 import '../widgets/message_bubble.dart';
@@ -24,6 +25,15 @@ class _ContextPageState extends State<ContextPage> {
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   bool _isDragging = false;
+
+  FaIconData? get _osIcon => switch (widget.os) {
+    'linux' => FontAwesomeIcons.linux,
+    'windows' => FontAwesomeIcons.windows,
+    'macos' => FontAwesomeIcons.apple,
+    'android' => FontAwesomeIcons.android,
+    'ios' => FontAwesomeIcons.apple,
+    _ => null,
+  };
 
   @override
   void dispose() {
@@ -57,21 +67,20 @@ class _ContextPageState extends State<ContextPage> {
       appBar: AppBar(
         title: Row(
           children: [
+            if (_osIcon != null)
+              FaIcon(
+                _osIcon!,
+                size: 18,
+                color: theme.colorScheme.onPrimary,
+              )
+            else
+              Icon(
+                Icons.lan,
+                size: 20,
+                color: theme.colorScheme.onPrimary,
+              ),
+            const SizedBox(width: 10),
             Text(widget.hostname),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.onPrimary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                widget.os,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onPrimary,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -121,7 +130,7 @@ class _ContextPageState extends State<ContextPage> {
                       ),
                       FileTransferBubble(
                         filename: 'specs_technique.pdf',
-                        fileSize: '0.5 MB / 2.1 MB (25%)',
+                        fileSize: '0.5 MB / 2.1 MB (1.2 MB/s)',
                         isMine: true,
                         peerName: widget.hostname,
                         status: FileTransferStatus.transferring,

@@ -8,9 +8,22 @@ class PeersPage extends StatelessWidget {
 
   // Données de démonstration
   static const _demoPeers = [
-    {'hostname': 'PC-Bureau', 'os': 'linux'},
-    {'hostname': 'Pixel-8', 'os': 'android'},
-    {'hostname': 'MacBook', 'os': 'macos'},
+    {'hostname': 'PC-Bureau', 'os': 'linux', 'ip': '192.168.1.42'},
+    {'hostname': 'Pixel-8', 'os': 'android', 'ip': '192.168.1.73'},
+    {'hostname': 'MacBook-Pro', 'os': 'macos', 'ip': '192.168.1.108'},
+    {'hostname': 'Surface-Laptop', 'os': 'windows', 'ip': '192.168.1.91'},
+    {'hostname': 'iPhone-15', 'os': 'ios', 'ip': '192.168.1.55'},
+    {'hostname': 'Raspberry-NAS', 'os': 'unknown', 'ip': '192.168.1.200'},
+    {'hostname': 'Dev-Tower', 'os': 'linux', 'ip': '192.168.1.12'},
+    {'hostname': 'Galaxy-S24', 'os': 'android', 'ip': '192.168.1.61'},
+    {'hostname': 'Mac-Mini-M4', 'os': 'macos', 'ip': '192.168.1.77'},
+    {'hostname': 'WorkStation-01', 'os': 'windows', 'ip': '192.168.1.34'},
+    {'hostname': 'iPad-Pro', 'os': 'ios', 'ip': '192.168.1.82'},
+    {'hostname': 'ThinkPad-X1', 'os': 'linux', 'ip': '192.168.1.145'},
+    {'hostname': 'Xiaomi-14', 'os': 'android', 'ip': '192.168.1.19'},
+    {'hostname': 'iMac-27', 'os': 'macos', 'ip': '192.168.1.167'},
+    {'hostname': 'Gaming-Rig', 'os': 'windows', 'ip': '192.168.1.88'},
+    {'hostname': 'Smart-TV', 'os': 'unknown', 'ip': '192.168.1.250'},
   ];
 
   @override
@@ -64,12 +77,13 @@ class PeersPage extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: _demoPeers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 4),
+                  separatorBuilder: (_, _) => const SizedBox(height: 4),
                   itemBuilder: (context, index) {
                     final peer = _demoPeers[index];
                     return PeerTile(
                       hostname: peer['hostname']!,
                       os: peer['os']!,
+                      ip: peer['ip']!,
                       isUploading: index == 0,
                       uploadSpeed: index == 0 ? '2.4 MB/s' : null,
                       isDownloading: index == 1,

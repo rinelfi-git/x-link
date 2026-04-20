@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class PeerTile extends StatelessWidget {
   final String hostname;
   final String os;
+  final String ip;
   final VoidCallback onTap;
   final bool isUploading;
   final bool isDownloading;
@@ -13,6 +15,7 @@ class PeerTile extends StatelessWidget {
     super.key,
     required this.hostname,
     required this.os,
+    required this.ip,
     required this.onTap,
     this.isUploading = false,
     this.isDownloading = false,
@@ -20,13 +23,13 @@ class PeerTile extends StatelessWidget {
     this.downloadSpeed,
   });
 
-  IconData get _osIcon => switch (os) {
-    'linux' => Icons.computer,
-    'windows' => Icons.desktop_windows,
-    'macos' => Icons.laptop_mac,
-    'android' => Icons.phone_android,
-    'ios' => Icons.phone_iphone,
-    _ => Icons.devices,
+  FaIconData? get _osIcon => switch (os) {
+    'linux' => FontAwesomeIcons.linux,
+    'windows' => FontAwesomeIcons.windows,
+    'macos' => FontAwesomeIcons.apple,
+    'android' => FontAwesomeIcons.android,
+    'ios' => FontAwesomeIcons.apple,
+    _ => null,
   };
 
   @override
@@ -41,7 +44,9 @@ class PeerTile extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         leading: CircleAvatar(
           backgroundColor: theme.colorScheme.primaryContainer,
-          child: Icon(_osIcon, color: theme.colorScheme.primary, size: 20),
+          child: _osIcon != null
+              ? FaIcon(_osIcon!, color: theme.colorScheme.primary, size: 18)
+              : Icon(Icons.lan, color: theme.colorScheme.primary, size: 20),
         ),
         title: Text(
           hostname,
@@ -50,9 +55,10 @@ class PeerTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          os,
+          '@$ip',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            fontFamily: 'monospace',
           ),
         ),
         trailing: Row(

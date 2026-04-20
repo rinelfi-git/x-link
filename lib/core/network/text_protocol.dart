@@ -3,7 +3,7 @@ import 'dart:convert';
 /// Protocole TCP texte : chaque message est un JSON terminé par `\n`.
 ///
 /// Format :
-/// { "id": "<uuid>", "from": "<peer_id>", "ts": <epoch_ms>, "content": "..." }
+/// `{ "id": "uuid", "from": "peer_id", "ts": epoch_ms, "content": "..." }`
 class TextProtocol {
   static const int version = 1;
 

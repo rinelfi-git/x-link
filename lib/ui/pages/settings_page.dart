@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/services/permissions.dart';
+import '../../main.dart' show udpDiscovery;
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -93,7 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Identité sur le réseau',
           subtitle: 'Nom visible par les autres pairs',
           child: Text(
-            'PC-Bureau (linux)',
+            '${udpDiscovery.hostname} (${udpDiscovery.os})',
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w500,

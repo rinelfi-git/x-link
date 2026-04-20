@@ -11,7 +11,8 @@ import 'protocol.dart';
 ///
 /// Gère ANNOUNCE, HEARTBEAT, LEAVE, et Re-ANNOUNCE à la reconfiguration.
 class UdpDiscovery {
-  static const Duration heartbeatInterval = Duration(seconds: 5);
+  static const Duration announceInterval = Duration(seconds: 5);
+  static const Duration heartbeatInterval = Duration(seconds: 3);
   static const Duration peerTimeout = Duration(seconds: 15);
 
   final int discoveryPort;
@@ -22,6 +23,7 @@ class UdpDiscovery {
   late final String id;
 
   RawDatagramSocket? _socket;
+  Timer? _announceTimer;
   Timer? _heartbeatTimer;
 
   /// Ports TCP actuels (fournis par TextServer / FileServer)
@@ -62,6 +64,7 @@ class UdpDiscovery {
     _socket!.listen(_onUdpEvent);
 
     _broadcastAnnounce();
+    _startAnnounce();
     _startHeartbeat();
 
     debugPrint('[UDP] Discovery démarré sur port $discoveryPort (id=$id)');
@@ -78,6 +81,8 @@ class UdpDiscovery {
 
   /// Envoie LEAVE et ferme le socket.
   Future<void> stop() async {
+    _announceTimer?.cancel();
+    _announceTimer = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
 
@@ -192,6 +197,12 @@ class UdpDiscovery {
       InternetAddress('255.255.255.255'),
       discoveryPort,
     );
+  }
+
+  void _startAnnounce() {
+    _announceTimer = Timer.periodic(announceInterval, (_) {
+      _broadcastAnnounce();
+    });
   }
 
   void _startHeartbeat() {

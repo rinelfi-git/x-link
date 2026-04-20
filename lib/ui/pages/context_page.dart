@@ -1,20 +1,22 @@
+import 'dart:async';
+
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+import '../../core/models/chat_message.dart';
+import '../../core/models/peer.dart';
 import '../../core/services/permissions.dart';
-import '../widgets/file_transfer_bubble.dart';
+import '../../main.dart' show messageStore, textClient;
 import '../widgets/message_bubble.dart';
 
 class ContextPage extends StatefulWidget {
-  final String hostname;
-  final String os;
+  final Peer peer;
 
   const ContextPage({
     super.key,
-    required this.hostname,
-    required this.os,
+    required this.peer,
   });
 
   @override
@@ -26,8 +28,11 @@ class _ContextPageState extends State<ContextPage> {
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   bool _isDragging = false;
+  bool _sending = false;
+  late StreamSubscription<String> _sub;
+  late List<ChatMessage> _messages;
 
-  FaIconData? get _osIcon => switch (widget.os) {
+  FaIconData? get _osIcon => switch (widget.peer.os) {
     'linux' => FontAwesomeIcons.linux,
     'windows' => FontAwesomeIcons.windows,
     'macos' => FontAwesomeIcons.apple,
@@ -37,27 +42,56 @@ class _ContextPageState extends State<ContextPage> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    _messages = messageStore.messagesFor(widget.peer.id);
+    _sub = messageStore.updates.listen((peerId) {
+      if (peerId != widget.peer.id) return;
+      if (!mounted) return;
+      setState(() {
+        _messages = messageStore.messagesFor(widget.peer.id);
+      });
+      _scrollToBottom();
+    });
+  }
+
+  @override
   void dispose() {
+    _sub.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    debugPrint('[TEXT] Envoi: "$text"');
-    _controller.clear();
-    _focusNode.requestFocus();
-
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
     });
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _sending) return;
+
+    setState(() => _sending = true);
+    try {
+      await textClient.send(widget.peer, text);
+      _controller.clear();
+      _focusNode.requestFocus();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Échec de l\'envoi : $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -81,7 +115,7 @@ class _ContextPageState extends State<ContextPage> {
                 color: theme.colorScheme.onPrimary,
               ),
             const SizedBox(width: 10),
-            Text(widget.hostname),
+            Text(widget.peer.hostname),
           ],
         ),
       ),
@@ -98,74 +132,35 @@ class _ContextPageState extends State<ContextPage> {
         },
         child: Stack(
           children: [
-            // Contenu principal
             Column(
               children: [
                 Expanded(
-                  child: ListView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    children: [
-                      MessageBubble(
-                        content:
-                            'Salut, je t\'envoie les fichiers du projet',
-                        isMine: true,
-                        isFile: false,
-                        peerName: widget.hostname,
-                      ),
-                      FileTransferBubble(
-                        filename: 'maquette_v2.fig',
-                        fileSize: '4.7 MB',
-                        isMine: false,
-                        peerName: widget.hostname,
-                        status: FileTransferStatus.completed,
-                        onAction: () {},
-                      ),
-                      MessageBubble(
-                        content:
-                            'Merci ! Je t\'envoie les specs en retour',
-                        isMine: false,
-                        isFile: false,
-                        peerName: widget.hostname,
-                      ),
-                      FileTransferBubble(
-                        filename: 'specs_technique.pdf',
-                        fileSize: '0.5 MB / 2.1 MB (1.2 MB/s)',
-                        isMine: true,
-                        peerName: widget.hostname,
-                        status: FileTransferStatus.transferring,
-                        progress: 0.25,
-                        onAction: () {},
-                      ),
-                      FileTransferBubble(
-                        filename: 'video_demo.mp4',
-                        fileSize: '158.3 MB',
-                        isMine: true,
-                        peerName: widget.hostname,
-                        status: FileTransferStatus.failed,
-                        onAction: () {},
-                      ),
-                      FileTransferBubble(
-                        filename: 'archive_sources.zip',
-                        fileSize: '47.2 MB',
-                        isMine: true,
-                        peerName: widget.hostname,
-                        status: FileTransferStatus.pending,
-                        onAction: () {},
-                      ),
-                      FileTransferBubble(
-                        filename: 'rapport_final.docx',
-                        fileSize: '1.3 MB',
-                        isMine: true,
-                        peerName: widget.hostname,
-                        status: FileTransferStatus.completed,
-                        onAction: () {},
-                      ),
-                    ],
-                  ),
+                  child: _messages.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Aucun message',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = _messages[index];
+                            return MessageBubble(
+                              content: msg.content,
+                              isMine: msg.isMine,
+                              isFile: false,
+                              peerName: widget.peer.hostname,
+                            );
+                          },
+                        ),
                 ),
                 Container(
                   decoration: BoxDecoration(
@@ -202,6 +197,7 @@ class _ContextPageState extends State<ContextPage> {
                         child: TextField(
                           focusNode: _focusNode,
                           controller: _controller,
+                          enabled: !_sending,
                           decoration: InputDecoration(
                             hintText: 'Message...',
                             filled: true,
@@ -220,16 +216,22 @@ class _ContextPageState extends State<ContextPage> {
                       ),
                       const SizedBox(width: 4),
                       IconButton.filled(
-                        icon: const Icon(Icons.send, size: 20),
-                        onPressed: _sendMessage,
+                        icon: _sending
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.send, size: 20),
+                        onPressed: _sending ? null : _sendMessage,
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-
-            // Overlay dropzone
             if (_isDragging)
               AnimatedOpacity(
                 opacity: _isDragging ? 1.0 : 0.0,
@@ -279,7 +281,7 @@ class _ContextPageState extends State<ContextPage> {
                                 ),
                               ),
                               Text(
-                                'vers ${widget.hostname}',
+                                'vers ${widget.peer.hostname}',
                                 style:
                                     theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onPrimary

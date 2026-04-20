@@ -87,10 +87,7 @@ class _PeersView extends StatelessWidget {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => ContextPage(
-                              hostname: peer.hostname,
-                              os: peer.os,
-                            ),
+                            builder: (_) => ContextPage(peer: peer),
                           ),
                         );
                       },

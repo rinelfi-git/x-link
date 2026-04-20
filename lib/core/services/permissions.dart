@@ -1,28 +1,62 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-/// Helper générique pour demander les permissions au moment de l'action,
-/// pas au démarrage de l'app.
+/// Exception levée quand une permission nécessaire est refusée.
+class PermissionDeniedException implements Exception {
+  final Permission permission;
+  final String message;
+  final bool permanentlyDenied;
+
+  PermissionDeniedException({
+    required this.permission,
+    required this.message,
+    this.permanentlyDenied = false,
+  });
+
+  @override
+  String toString() => message;
+}
+
+/// Helper pour vérifier / demander les permissions avant une action.
+///
+/// Sur desktop (Linux, Windows, macOS), les permissions runtime n'existent
+/// pas : les méthodes retournent immédiatement sans rien faire.
+///
+/// Sur mobile, l'utilisateur est invité à accorder la permission, et une
+/// [PermissionDeniedException] est levée s'il refuse.
+///
+/// Usage :
+/// ```dart
+/// try {
+///   await AppPermissions.ensureStorage();
+///   final result = await FilePicker.pickFiles();
+///   // ...
+/// } on PermissionDeniedException catch (e) {
+///   ScaffoldMessenger.of(context).showSnackBar(
+///     SnackBar(content: Text(e.message)),
+///   );
+/// }
+/// ```
 class AppPermissions {
-  /// Vérifie/demande la permission d'accès au stockage.
-  ///
-  /// - Sur desktop (Linux, Windows, macOS) : toujours autorisé (pas de
-  ///   permission runtime, le file_picker utilise les dialogues natifs).
-  /// - Sur Android 13+ : demande les permissions granulaires sur les médias.
-  /// - Sur Android < 13 : demande READ_EXTERNAL_STORAGE.
-  /// - Sur iOS : demande l'accès aux photos.
-  ///
-  /// Retourne true si la permission est accordée (full ou limited).
-  static Future<bool> checkStorageWrite() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return true;
+  /// Demande la permission d'accès au stockage. Lève [PermissionDeniedException]
+  /// si elle est refusée.
+  static Future<void> ensureStorage() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
 
     if (Platform.isIOS) {
       final status = await Permission.photos.request();
-      return status.isGranted || status.isLimited;
+      if (!status.isGranted && !status.isLimited) {
+        throw PermissionDeniedException(
+          permission: Permission.photos,
+          message: 'Accès à la galerie refusé',
+          permanentlyDenied: status.isPermanentlyDenied,
+        );
+      }
+      return;
     }
 
+    // Android 13+ : permissions granulaires
     final statuses = await [
       Permission.photos,
       Permission.videos,
@@ -32,56 +66,34 @@ class AppPermissions {
     final mediaGranted = statuses.values.every(
       (s) => s.isGranted || s.isLimited,
     );
-    if (mediaGranted) return true;
+    if (mediaGranted) return;
 
     // Android < 13 : fallback sur READ_EXTERNAL_STORAGE
     final legacy = await Permission.storage.request();
-    return legacy.isGranted;
-  }
+    if (legacy.isGranted) return;
 
-  /// Exécute [action] uniquement si la permission stockage est accordée.
-  /// Si refusée, affiche un SnackBar informatif.
-  ///
-  /// Usage :
-  /// ```dart
-  /// AppPermissions.withStorage(context, () async {
-  ///   final result = await FilePicker.pickFiles();
-  ///   // ...
-  /// });
-  /// ```
-  static Future<void> withStorage(
-    BuildContext context,
-    Future<void> Function() action,
-  ) async {
-    final granted = await checkStorageWrite();
-    if (!granted) {
-      if (context.mounted) {
-        _showDeniedSnackBar(
-          context,
-          'Accès au stockage refusé. Autorisez-le dans les paramètres.',
-        );
-      }
-      return;
-    }
-    await action();
-  }
-
-  /// Vérifie/demande la permission de notifications.
-  static Future<bool> checkNotifications() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return true;
-    final status = await Permission.notification.request();
-    return status.isGranted;
-  }
-
-  static void _showDeniedSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Paramètres',
-          onPressed: openAppSettings,
-        ),
-      ),
+    throw PermissionDeniedException(
+      permission: Permission.storage,
+      message: 'Accès au stockage refusé',
+      permanentlyDenied: legacy.isPermanentlyDenied,
     );
   }
+
+  /// Demande la permission pour les notifications. Lève [PermissionDeniedException]
+  /// si refusée.
+  static Future<void> ensureNotifications() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    final status = await Permission.notification.request();
+    if (!status.isGranted) {
+      throw PermissionDeniedException(
+        permission: Permission.notification,
+        message: 'Notifications refusées',
+        permanentlyDenied: status.isPermanentlyDenied,
+      );
+    }
+  }
+
+  /// Ouvre les paramètres de l'app (utile quand une permission est
+  /// permanentlyDenied).
+  static Future<bool> openSettings() => openAppSettings();
 }

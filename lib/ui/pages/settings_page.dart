@@ -15,6 +15,28 @@ class _SettingsPageState extends State<SettingsPage> {
   int _maxFileTransfers = 2;
   String _downloadPath = '~/Téléchargements';
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _pickDownloadFolder() async {
+    try {
+      await AppPermissions.ensureStorage();
+      final path = await FilePicker.getDirectoryPath();
+      if (path != null) {
+        setState(() => _downloadPath = path);
+      }
+    } on PermissionDeniedException catch (e) {
+      _showError(e.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -74,14 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
           title: 'Dossier de réception',
           subtitle: _downloadPath,
           child: FilledButton.tonal(
-            onPressed: () {
-              AppPermissions.withStorage(context, () async {
-                final path = await FilePicker.getDirectoryPath();
-                if (path != null) {
-                  setState(() => _downloadPath = path);
-                }
-              });
-            },
+            onPressed: _pickDownloadFolder,
             child: const Text('Changer'),
           ),
         ),

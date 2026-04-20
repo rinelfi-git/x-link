@@ -75,6 +75,40 @@ class _ContextPageState extends State<ContextPage> {
     });
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _pickFiles() async {
+    try {
+      await AppPermissions.ensureStorage();
+      final result = await FilePicker.pickFiles(allowMultiple: true);
+      if (result == null) return;
+      for (final file in result.files) {
+        debugPrint('[PICK] Fichier: ${file.path}');
+      }
+    } on PermissionDeniedException catch (e) {
+      _showError(e.message);
+    }
+  }
+
+  Future<void> _handleDrop(List<dynamic> files) async {
+    try {
+      await AppPermissions.ensureStorage();
+      for (final file in files) {
+        debugPrint('[DROP] Fichier: ${file.path}');
+      }
+    } on PermissionDeniedException catch (e) {
+      _showError(e.message);
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _sending) return;
@@ -124,11 +158,7 @@ class _ContextPageState extends State<ContextPage> {
         onDragExited: (_) => setState(() => _isDragging = false),
         onDragDone: (details) {
           setState(() => _isDragging = false);
-          AppPermissions.withStorage(context, () async {
-            for (final file in details.files) {
-              debugPrint('[DROP] Fichier: ${file.path}');
-            }
-          });
+          _handleDrop(details.files);
         },
         child: Stack(
           children: [
@@ -180,18 +210,7 @@ class _ContextPageState extends State<ContextPage> {
                           Icons.attach_file,
                           color: theme.colorScheme.primary,
                         ),
-                        onPressed: () {
-                          AppPermissions.withStorage(context, () async {
-                            final result = await FilePicker.pickFiles(
-                              allowMultiple: true,
-                            );
-                            if (result != null) {
-                              for (final file in result.files) {
-                                debugPrint('[PICK] Fichier: ${file.path}');
-                              }
-                            }
-                          });
-                        },
+                        onPressed: _pickFiles,
                       ),
                       Expanded(
                         child: TextField(

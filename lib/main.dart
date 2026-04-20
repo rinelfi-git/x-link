@@ -5,10 +5,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app/setup_desktop.dart';
 import 'app/setup_mobile.dart';
+import 'core/network/text_client.dart';
+import 'core/network/text_server.dart';
 import 'core/network/udp_discovery.dart';
+import 'core/services/message_store.dart';
 
-/// Instance globale de la découverte UDP (accessible dans toute l'app).
+/// Instances globales accessibles dans toute l'app.
 late final UdpDiscovery udpDiscovery;
+late final TextServer textServer;
+late final TextClient textClient;
+late final MessageStore messageStore;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,19 +24,25 @@ void main() async {
   final discoveryPort =
       int.tryParse(dotenv.env['CROSSLINK_DISCOVERY_PORT'] ?? '') ?? 53317;
 
+  messageStore = MessageStore();
+
+  textServer = TextServer(store: messageStore);
+  final textPort = await textServer.start();
+
   udpDiscovery = UdpDiscovery(
     discoveryPort: discoveryPort,
     hostname: Platform.localHostname,
     os: Platform.operatingSystem,
   );
 
-  // Démarrage avec des ports TCP placeholders pour l'instant.
-  // Quand TextServer et FileServer seront implémentés, on les passera ici.
-  await udpDiscovery.start(textPort: 0, filePorts: const []);
+  await udpDiscovery.start(textPort: textPort, filePorts: const []);
+
+  textClient = TextClient(selfId: udpDiscovery.id, store: messageStore);
 
   debugPrint('[MAIN] hostname=${Platform.localHostname} '
       'os=${Platform.operatingSystem} '
-      'id=${udpDiscovery.id}');
+      'id=${udpDiscovery.id} '
+      'textPort=$textPort');
 
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await setupDesktop();
